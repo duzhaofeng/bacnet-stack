@@ -40,6 +40,7 @@
 #include "bacnet/proplist.h"
 /* objects */
 #include "bacnet/basic/object/device.h"
+#include "bacnet/basic/object/bi.h"
 #include "bacnet/basic/object/bo.h"
 #if (BACNET_PROTOCOL_REVISION >= 17)
 #include "bacnet/basic/object/netport.h"
@@ -65,6 +66,10 @@ static struct my_object_functions {
         Device_Valid_Object_Instance_Number,
         Device_Object_Name, Device_Read_Property_Local,
         Device_Write_Property_Local, Device_Property_Lists },
+    { OBJECT_BINARY_INPUT, Binary_Input_Init, Binary_Input_Count,
+        Binary_Input_Index_To_Instance, Binary_Input_Valid_Instance,
+        Binary_Input_Object_Name, Binary_Input_Read_Property, NULL,
+        Binary_Input_Property_Lists },
     { OBJECT_BINARY_OUTPUT, Binary_Output_Init, Binary_Output_Count,
         Binary_Output_Index_To_Instance, Binary_Output_Valid_Instance,
         Binary_Output_Object_Name, Binary_Output_Read_Property,
@@ -86,7 +91,7 @@ static BACNET_DEVICE_STATUS System_Status = STATUS_OPERATIONAL;
 static BACNET_CHARACTER_STRING My_Object_Name;
 static uint32_t Database_Revision;
 static BACNET_REINITIALIZED_STATE Reinitialize_State = BACNET_REINIT_IDLE;
-static const char *Reinit_Password = "stm32-challenge";
+static const char *Reinit_Password = "ch32v-bacnet";
 static const char *BACnet_Version = BACNET_VERSION_TEXT;
 
 /* These three arrays are used by the ReadPropertyMultiple handler */
@@ -417,7 +422,7 @@ void Device_Init(object_functions_t *object_table)
         Object_Instance_Number = 103;
         srand(Object_Instance_Number);
     }
-    characterstring_init_ansi(&My_Object_Name, "stm32-design-challenge-103");
+    characterstring_init_ansi(&My_Object_Name, "BACnet I/O Module");
 }
 
 /* methods to manipulate the data */
@@ -617,12 +622,12 @@ int Device_Read_Property_Local(BACNET_READ_PROPERTY_DATA *rpdata)
     apdu = rpdata->application_data;
     switch ((int)rpdata->object_property) {
         case PROP_DESCRIPTION:
-            characterstring_init_ansi(&char_string, "BACnet Development Kit");
+            characterstring_init_ansi(&char_string, "BACnet I/O Module");
             apdu_len =
                 encode_application_character_string(&apdu[0], &char_string);
             break;
         case PROP_LOCATION:
-            characterstring_init_ansi(&char_string, "USA");
+            characterstring_init_ansi(&char_string, "China");
             apdu_len =
                 encode_application_character_string(&apdu[0], &char_string);
             break;
@@ -639,7 +644,7 @@ int Device_Read_Property_Local(BACNET_READ_PROPERTY_DATA *rpdata)
             apdu_len = encode_application_unsigned(&apdu[0], BACNET_VENDOR_ID);
             break;
         case PROP_MODEL_NAME:
-            characterstring_init_ansi(&char_string, "bdk-stm32-mstp");
+            characterstring_init_ansi(&char_string, "ch32v-mstp");
             apdu_len =
                 encode_application_character_string(&apdu[0], &char_string);
             break;

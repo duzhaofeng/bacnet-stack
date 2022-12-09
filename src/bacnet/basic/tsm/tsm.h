@@ -50,6 +50,11 @@ extern "C" {
 
 #if (!MAX_TSM_TRANSACTIONS)
 #define tsm_free_invoke_id(x) (void)x;
+#define tsm_next_free_invokeID() (0)
+#define tsm_invoke_id_free(x) (0)
+#define tsm_invoke_id_failed(x) (0)
+#define tsm_transaction_available() (0)
+#define tsm_set_confirmed_unsegmented_transaction(a,b,c,d,e) (void)a;
 #else
 typedef enum {
     TSM_STATE_IDLE,
