@@ -21,11 +21,11 @@
 // #include <sys/time.h>
 
 /* modbus slave serial device */
-static rt_serial_t *serial;
+static rt_serial_t *serial = NULL;
 
-static unsigned int RS485_Baud = 38400;
+static unsigned int RS485_Baud = 19200;
 
-static char *RS485_Port_Name = "uart0";
+static char *RS485_Port_Name = "uart1";
 
 /* Ring buffer for incoming bytes, in order to speed up the receiving. */
 static FIFO_BUFFER Rx_FIFO;

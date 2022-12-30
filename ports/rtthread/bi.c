@@ -111,6 +111,12 @@ BACNET_BINARY_PV Binary_Input_Present_Value(uint32_t object_instance)
     BACNET_BINARY_PV value = BINARY_INACTIVE;
     unsigned index = 0;
 
+    rt_uint16_t bi = read_di();
+    while (index < MAX_BINARY_INPUTS) {
+        Present_Value[index] = (bi & (1 << index)) ? BINARY_ACTIVE : BINARY_INACTIVE;
+        index++;
+    }
+
     index = Binary_Input_Instance_To_Index(object_instance);
     if (index < MAX_BINARY_INPUTS) {
         value = Present_Value[index];
