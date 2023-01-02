@@ -2,6 +2,9 @@
 #define HARDWARE_H
 
 #include <rtthread.h>
+#define DBG_SECTION_NAME               "bacnet"
+#define DBG_LEVEL                      DBG_INFO
+#include <rtdbg.h>
 
 #define HAVE_BINARY_OUTPUTS 0
 

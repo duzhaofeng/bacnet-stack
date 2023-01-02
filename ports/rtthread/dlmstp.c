@@ -40,7 +40,7 @@
 #include "bacnet/basic/sys/ringbuf.h"
 #include "bacnet/basic/sys/debug.h"
 /* OS Specific include */
-#include "bacport.h"
+// #include "bacport.h"
 
 /** @file rtthread/dlmstp.c  Provides rtthread-specific DataLink functions for MS/TP.
  */
@@ -51,26 +51,15 @@ uint16_t MSTP_Packets = 0;
 /* packet queues */
 static DLMSTP_PACKET Receive_Packet;
 /* mechanism to wait for a packet */
-/*
-static RT_COND Receive_Packet_Flag;
-static RT_MUTEX Receive_Packet_Mutex;
-*/
-static pthread_cond_t Receive_Packet_Flag;
-static pthread_mutex_t Receive_Packet_Mutex;
+static struct rt_semaphore Receive_Packet_Flag;
+static struct rt_mutex Receive_Packet_Mutex;
 /* mechanism to wait for a frame in state machine */
-/*
-static RT_COND Received_Frame_Flag;
-static RT_MUTEX Received_Frame_Mutex;
-*/
 
-static pthread_cond_t Received_Frame_Flag;
-static pthread_mutex_t Received_Frame_Mutex;
-static pthread_cond_t Master_Done_Flag;
-static pthread_mutex_t Master_Done_Mutex;
-static pthread_mutex_t Ring_Buffer_Mutex;
-static pthread_mutex_t Thread_Mutex;
+static struct rt_mutex Ring_Buffer_Mutex;
+static struct rt_mutex Thread_Mutex;
 
-static pthread_t hThread;
+static rt_uint8_t hThread_stack[512];
+static struct rt_thread hThread;
 static bool run_thread;
 
 /*RT_TASK Receive_Task, Fsm_Task;*/
@@ -140,31 +129,12 @@ static int timespec_subtract(
     return l->tv_sec < right.tv_sec;
 }
 
-/**
- * Add a certain number of nanoseconds to the specified time.
- *
- * @param ts - The time to which to add to.
- * @param ns - The number of nanoseconds to add.  Allowed range
- *		is -NS_PER_S..NS_PER_S (i.e., plus minus one second).
- */
-static void timespec_add_ns(struct timespec *ts, long ns)
-{
-    ts->tv_nsec += ns;
-    if (ts->tv_nsec > NS_PER_S) {
-        ts->tv_nsec -= NS_PER_S;
-        ts->tv_sec += 1;
-    } else if (ts->tv_nsec < 0) {
-        ts->tv_nsec += NS_PER_S;
-        ts->tv_sec -= 1;
-    }
-}
-
 static uint32_t Timer_Silence(void *pArg)
 {
     struct timespec now, diff;
     int32_t res;
 
-    clock_gettime(CLOCK_MONOTONIC, &now);
+    clock_gettime(CLOCK_REALTIME, &now);
     timespec_subtract(&diff, &now, &start);
     res = ((diff.tv_sec) * 1000 + (diff.tv_nsec) / 1000000);
 
@@ -173,33 +143,18 @@ static uint32_t Timer_Silence(void *pArg)
 
 static void Timer_Silence_Reset(void *pArg)
 {
-    clock_gettime(CLOCK_MONOTONIC, &start);
-}
-
-static void get_abstime(struct timespec *abstime, unsigned long milliseconds)
-{
-    clock_gettime(CLOCK_MONOTONIC, abstime);
-    if (milliseconds > 1000) {
-        fprintf(stderr, "DLMSTP: limited timeout of %lums to 1000ms\n",
-            milliseconds);
-        milliseconds = 1000;
-    }
-    timespec_add_ns(abstime, 1000000 * milliseconds);
+    clock_gettime(CLOCK_REALTIME, &start);
 }
 
 void dlmstp_cleanup(void)
 {
-    pthread_mutex_lock(&Thread_Mutex);
+    rt_mutex_take(&Thread_Mutex, RT_WAITING_FOREVER);
     run_thread = false;
-    pthread_mutex_unlock(&Thread_Mutex);
-    pthread_join (hThread, NULL);
-    pthread_cond_destroy(&Received_Frame_Flag);
-    pthread_cond_destroy(&Receive_Packet_Flag);
-    pthread_cond_destroy(&Master_Done_Flag);
-    pthread_mutex_destroy(&Received_Frame_Mutex);
-    pthread_mutex_destroy(&Receive_Packet_Mutex);
-    pthread_mutex_destroy(&Master_Done_Mutex);
-    pthread_mutex_destroy (&Ring_Buffer_Mutex);
+    rt_mutex_release(&Thread_Mutex);
+    rt_thread_detach(&hThread);
+    rt_sem_detach(&Receive_Packet_Flag);
+    rt_mutex_detach(&Receive_Packet_Mutex);
+    rt_mutex_detach(&Ring_Buffer_Mutex);
 }
 
 /* returns number of bytes sent on success, zero on failure */
@@ -211,7 +166,7 @@ int dlmstp_send_pdu(BACNET_ADDRESS *dest, /* destination address */
     int bytes_sent = 0;
     struct mstp_pdu_packet *pkt;
     unsigned i = 0;
-    pthread_mutex_lock (&Ring_Buffer_Mutex);
+    rt_mutex_take(&Ring_Buffer_Mutex, RT_WAITING_FOREVER);
     pkt = (struct mstp_pdu_packet *)Ringbuf_Data_Peek(&PDU_Queue);
     if (pkt) {
         pkt->data_expecting_reply = npdu_data->data_expecting_reply;
@@ -229,7 +184,7 @@ int dlmstp_send_pdu(BACNET_ADDRESS *dest, /* destination address */
             bytes_sent = pdu_len;
         }
     }
-    pthread_mutex_unlock (&Ring_Buffer_Mutex);
+    rt_mutex_release(&Ring_Buffer_Mutex);
 
     return bytes_sent;
 }
@@ -240,15 +195,12 @@ uint16_t dlmstp_receive(BACNET_ADDRESS *src, /* source address */
     unsigned timeout)
 { /* milliseconds to wait for a packet */
     uint16_t pdu_len = 0;
-    struct timespec abstime;
 
     (void)max_pdu;
     /* see if there is a packet available, and a place
        to put the reply (if necessary) and process it */
-    pthread_mutex_lock(&Receive_Packet_Mutex);
-    get_abstime(&abstime, timeout);
-    pthread_cond_timedwait(
-        &Receive_Packet_Flag, &Receive_Packet_Mutex, &abstime);
+    rt_sem_take(&Receive_Packet_Flag, RT_WAITING_FOREVER);
+    rt_mutex_take(&Receive_Packet_Mutex, RT_WAITING_FOREVER);
     if (Receive_Packet.ready) {
         if (Receive_Packet.pdu_len) {
             MSTP_Packets++;
@@ -263,12 +215,12 @@ uint16_t dlmstp_receive(BACNET_ADDRESS *src, /* source address */
         }
         Receive_Packet.ready = false;
     }
-    pthread_mutex_unlock(&Receive_Packet_Mutex);
+    rt_mutex_release(&Receive_Packet_Mutex);
 
     return pdu_len;
 }
 
-static void *dlmstp_master_fsm_task(void *pArg)
+static void dlmstp_master_fsm_task(void *pArg)
 {
     uint32_t silence = 0;
     bool run_master = false;
@@ -310,20 +262,20 @@ static void *dlmstp_master_fsm_task(void *pArg)
                 while (run_loop) {
                     /* do nothing while immediate transitioning */
                     run_loop = MSTP_Master_Node_FSM(&MSTP_Port);
-                    pthread_mutex_lock (&Thread_Mutex);
+                    rt_mutex_take(&Thread_Mutex, RT_WAITING_FOREVER);
                     if (!run_thread) run_loop = false;
-                    pthread_mutex_unlock (&Thread_Mutex);
+                    rt_mutex_release(&Thread_Mutex);
                 }
             } else if (MSTP_Port.This_Station < 255) {
                 MSTP_Slave_Node_FSM(&MSTP_Port);
             }
         }
-        pthread_mutex_lock (&Thread_Mutex);
+        rt_mutex_take(&Thread_Mutex, RT_WAITING_FOREVER);
         thread_alive = run_thread;
-        pthread_mutex_unlock (&Thread_Mutex);
+        rt_mutex_release(&Thread_Mutex);
     }
 
-    return NULL;
+    return;
 }
 
 void dlmstp_fill_bacnet_address(BACNET_ADDRESS *src, uint8_t mstp_address)
@@ -354,9 +306,9 @@ uint16_t MSTP_Put_Receive(volatile struct mstp_port_struct_t *mstp_port)
 {
     uint16_t pdu_len = 0;
 
-    pthread_mutex_lock(&Receive_Packet_Mutex);
+    rt_mutex_take(&Receive_Packet_Mutex, RT_WAITING_FOREVER);
     if (Receive_Packet.ready) {
-        debug_printf("MS/TP: Dropped! Not Ready.\n");
+        LOG_D("MS/TP: Dropped! Not Ready");
     } else {
         /* bounds check - maybe this should send an abort? */
         pdu_len = mstp_port->DataLength;
@@ -364,7 +316,7 @@ uint16_t MSTP_Put_Receive(volatile struct mstp_port_struct_t *mstp_port)
             pdu_len = sizeof(Receive_Packet.pdu);
         }
         if (pdu_len == 0) {
-            debug_printf("MS/TP: PDU Length is 0!\n");
+            LOG_E("MS/TP: PDU Length is 0!");
         }
         memmove((void *)&Receive_Packet.pdu[0],
             (void *)&mstp_port->InputBuffer[0], pdu_len);
@@ -372,9 +324,9 @@ uint16_t MSTP_Put_Receive(volatile struct mstp_port_struct_t *mstp_port)
             &Receive_Packet.address, mstp_port->SourceAddress);
         Receive_Packet.pdu_len = mstp_port->DataLength;
         Receive_Packet.ready = true;
-        pthread_cond_signal(&Receive_Packet_Flag);
+        rt_sem_release(&Receive_Packet_Flag);
     }
-    pthread_mutex_unlock(&Receive_Packet_Mutex);
+    rt_mutex_release(&Receive_Packet_Mutex);
 
     return pdu_len;
 }
@@ -389,9 +341,9 @@ uint16_t MSTP_Get_Send(
     struct mstp_pdu_packet *pkt;
 
     (void)timeout;
-    pthread_mutex_lock (&Ring_Buffer_Mutex);
+    rt_mutex_take(&Ring_Buffer_Mutex, RT_WAITING_FOREVER);
     if (Ringbuf_Empty(&PDU_Queue)) {
-        pthread_mutex_unlock (&Ring_Buffer_Mutex);
+        rt_mutex_release(&Ring_Buffer_Mutex);
         return 0;
     }
     pkt = (struct mstp_pdu_packet *)Ringbuf_Peek(&PDU_Queue);
@@ -406,7 +358,7 @@ uint16_t MSTP_Get_Send(
             mstp_port->OutputBufferSize, frame_type, pkt->destination_mac,
             mstp_port->This_Station, (uint8_t *)&pkt->buffer[0], pkt->length);
     (void)Ringbuf_Pop(&PDU_Queue, NULL);
-    pthread_mutex_unlock (&Ring_Buffer_Mutex);
+    rt_mutex_release(&Ring_Buffer_Mutex);
 
     return pdu_len;
 }
@@ -441,20 +393,16 @@ static bool dlmstp_compare_data_expecting_reply(uint8_t *request_pdu,
     offset = npdu_decode(
         &request_pdu[0], NULL, &request.address, &request.npdu_data);
     if (request.npdu_data.network_layer_message) {
-#if PRINT_ENABLED
-        fprintf(stderr,
+        LOG_E(
             "DLMSTP: DER Compare failed: "
-            "Request is Network message.\n");
-#endif
+            "Request is Network message");
         return false;
     }
     request.pdu_type = request_pdu[offset] & 0xF0;
     if (request.pdu_type != PDU_TYPE_CONFIRMED_SERVICE_REQUEST) {
-#if PRINT_ENABLED
-        fprintf(stderr,
+        LOG_E(
             "DLMSTP: DER Compare failed: "
-            "Not Confirmed Request.\n");
-#endif
+            "Not Confirmed Request");
         return false;
     }
     request.invoke_id = request_pdu[offset + 2];
@@ -469,11 +417,9 @@ static bool dlmstp_compare_data_expecting_reply(uint8_t *request_pdu,
     reply.address.mac_len = 1;
     offset = npdu_decode(&reply_pdu[0], &reply.address, NULL, &reply.npdu_data);
     if (reply.npdu_data.network_layer_message) {
-#if PRINT_ENABLED
-        fprintf(stderr,
+        LOG_E(
             "DLMSTP: DER Compare failed: "
-            "Reply is Network message.\n");
-#endif
+            "Reply is Network message");
         return false;
     }
     /* reply could be a lot of things:
@@ -508,57 +454,36 @@ static bool dlmstp_compare_data_expecting_reply(uint8_t *request_pdu,
     if ((reply.pdu_type == PDU_TYPE_REJECT) ||
         (reply.pdu_type == PDU_TYPE_ABORT)) {
         if (request.invoke_id != reply.invoke_id) {
-#if PRINT_ENABLED
-            fprintf(stderr,
+            LOG_E(
                 "DLMSTP: DER Compare failed: "
-                "Invoke ID mismatch.\n");
-#endif
+                "Invoke ID mismatch");
             return false;
         }
     } else {
         if (request.invoke_id != reply.invoke_id) {
-#if PRINT_ENABLED
-            fprintf(stderr,
+            LOG_E(
                 "DLMSTP: DER Compare failed: "
-                "Invoke ID mismatch.\n");
-#endif
+                "Invoke ID mismatch");
             return false;
         }
         if (request.service_choice != reply.service_choice) {
-#if PRINT_ENABLED
-            fprintf(stderr,
+            LOG_E(
                 "DLMSTP: DER Compare failed: "
-                "Service choice mismatch.\n");
-#endif
+                "Service choice mismatch");
             return false;
         }
     }
     if (request.npdu_data.protocol_version !=
         reply.npdu_data.protocol_version) {
-#if PRINT_ENABLED
-        fprintf(stderr,
+        LOG_E(
             "DLMSTP: DER Compare failed: "
-            "NPDU Protocol Version mismatch.\n");
-#endif
+            "NPDU Protocol Version mismatch");
         return false;
     }
-#if 0
-    /* the NDPU priority doesn't get passed through the stack, and
-       all outgoing messages have NORMAL priority */
-    if (request.npdu_data.priority != reply.npdu_data.priority) {
-#if PRINT_ENABLED
-        fprintf(stderr,
-            "DLMSTP: DER Compare failed: " "NPDU Priority mismatch.\n");
-#endif
-        return false;
-    }
-#endif
     if (!bacnet_address_same(&request.address, &reply.address)) {
-#if PRINT_ENABLED
-        fprintf(stderr,
+        LOG_E(
             "DLMSTP: DER Compare failed: "
-            "BACnet Address mismatch.\n");
-#endif
+            "BACnet Address mismatch");
         return false;
     }
 
@@ -629,11 +554,6 @@ void dlmstp_set_max_info_frames(uint8_t max_info_frames)
 {
     if (max_info_frames >= 1) {
         MSTP_Port.Nmax_info_frames = max_info_frames;
-        /* FIXME: implement your data storage */
-        /* I2C_Write_Byte(
-           EEPROM_DEVICE_ADDRESS,
-           (uint8_t)max_info_frames,
-           EEPROM_MSTP_MAX_INFO_FRAMES_ADDR); */
     }
 
     return;
@@ -710,19 +630,10 @@ void dlmstp_get_broadcast_address(BACNET_ADDRESS *dest)
 
 bool dlmstp_init(char *ifname)
 {
-    unsigned long hThread = 0;
-    pthread_condattr_t attr;
-    int rv = 0;
+    rt_err_t rv = 0;
 
-    pthread_condattr_init(&attr);
-    if ((rv = pthread_condattr_setclock(&attr, CLOCK_MONOTONIC)) != 0) {
-        fprintf(stderr, "MS/TP Interface: %s\n failed to set MONOTONIC clock\n",
-            ifname);
-        exit(1);
-    }
-
-    pthread_mutex_init (&Ring_Buffer_Mutex, NULL);
-    pthread_mutex_init (&Thread_Mutex, NULL);
+    rt_mutex_init(&Ring_Buffer_Mutex, "Ring_Buffer_Mutex", RT_IPC_FLAG_PRIO);
+    rt_mutex_init(&Thread_Mutex, "Thread_Mutex", RT_IPC_FLAG_PRIO);
 
     /* initialize PDU queue */
     Ringbuf_Init(&PDU_Queue, (uint8_t *)&PDU_Buffer,
@@ -730,49 +641,44 @@ bool dlmstp_init(char *ifname)
     /* initialize packet queue */
     Receive_Packet.ready = false;
     Receive_Packet.pdu_len = 0;
-    rv = pthread_cond_init(&Receive_Packet_Flag, &attr);
-    if (rv != 0) {
-        fprintf(stderr,
-            "MS/TP Interface: %s\n cannot allocate PThread Condition.\n",
+    rv = rt_sem_init(&Receive_Packet_Flag, "Receive_Packet_Flag", 0, RT_IPC_FLAG_PRIO);
+    if (rv != RT_EOK) {
+        LOG_E(
+            "MS/TP Interface: %s, cannot allocate PThread Condition",
             ifname);
-        exit(1);
+        return false;
     }
-    rv = pthread_mutex_init(&Receive_Packet_Mutex, NULL);
-    if (rv != 0) {
-        fprintf(stderr,
-            "MS/TP Interface: %s\n cannot allocate PThread Mutex.\n", ifname);
-        exit(1);
+    rv = rt_mutex_init(&Receive_Packet_Mutex, "Receive_Packet_Mutex", RT_IPC_FLAG_PRIO);
+    if (rv != RT_EOK) {
+        LOG_E(
+            "MS/TP Interface: %s, cannot allocate Mutex", ifname);
+        return false;
     }
     /* initialize hardware */
     if (ifname) {
         RS485_Set_Interface(ifname);
-#if PRINT_ENABLED
-        fprintf(stderr, "MS/TP Interface: %s\n", ifname);
-#endif
+        LOG_E("MS/TP Interface: %s", ifname);
     }
     RS485_Initialize();
     MSTP_Port.InputBuffer = &RxBuffer[0];
     MSTP_Port.InputBufferSize = sizeof(RxBuffer);
     MSTP_Port.OutputBuffer = &TxBuffer[0];
     MSTP_Port.OutputBufferSize = sizeof(TxBuffer);
-    clock_gettime(CLOCK_MONOTONIC, &start);
+    MSTP_Port.Nmax_info_frames = DEFAULT_MAX_INFO_FRAMES;
+    clock_gettime(CLOCK_REALTIME, &start);
     MSTP_Port.SilenceTimer = Timer_Silence;
     MSTP_Port.SilenceTimerReset = Timer_Silence_Reset;
     MSTP_Init(&MSTP_Port);
-#if PRINT_ENABLED
-    fprintf(stderr, "MS/TP MAC: %02X\n", MSTP_Port.This_Station);
-    fprintf(stderr, "MS/TP Max_Master: %02X\n", MSTP_Port.Nmax_master);
-    fprintf(stderr, "MS/TP Max_Info_Frames: %u\n", MSTP_Port.Nmax_info_frames);
-#endif
-    /* start the threads */
-    /*    rv = pthread_create(&hThread, NULL, dlmstp_receive_fsm_task, NULL); */
-    /*    if (rv != 0) {
-       fprintf(stderr, "Failed to start recive FSM task\n");
-       } */
+    LOG_I("MS/TP MAC: %02X", MSTP_Port.This_Station);
+    LOG_I("MS/TP Max_Master: %02X", MSTP_Port.Nmax_master);
+    LOG_I("MS/TP Max_Info_Frames: %u", MSTP_Port.Nmax_info_frames);
     run_thread = true;
-    rv = pthread_create(&hThread, NULL, dlmstp_master_fsm_task, NULL);
-    if (rv != 0) {
-        fprintf(stderr, "Failed to start Master Node FSM task\n");
+    rv = rt_thread_init(&hThread, "bacnet_mstp", dlmstp_master_fsm_task, RT_NULL, hThread_stack, sizeof(hThread_stack), 9, 10);
+    if (rv != RT_EOK) {
+        LOG_E("Failed to start Master Node FSM task");
+        return false;
+    } else {
+        rt_thread_startup(&hThread);
     }
 
     return true;

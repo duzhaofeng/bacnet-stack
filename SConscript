@@ -8,8 +8,10 @@ src = Glob('src/bacnet/*.c') + \
       Glob('src/bacnet/basic/binding/*.c') + \
       Glob('src/bacnet/basic/service/*.c') + \
       Glob('src/bacnet/basic/npdu/*.c') + \
-      Glob('src/bacnet/basic/sys/*.c') + \
       Glob('src/bacnet/basic/tsm/*.c') + \
+      Glob('src/bacnet/basic/sys/fifo.c') + \
+      Glob('src/bacnet/basic/sys/mstimer.c') + \
+      Glob('src/bacnet/basic/sys/ringbuf.c') + \
       Glob(path_port + 'bacnet.c') + \
       Glob(path_port + 'device.c') + \
       Glob(path_port + 'mstimer-init.c') + \
@@ -28,7 +30,7 @@ src_bip = Glob(path_port + 'bip-init.c') + \
           Glob('src/bacnet/basic/bbmd/h_bbmd.c')
 
 path = [cwd + '/src', cwd + '/' + path_port]
-defines = ['MAX_TSM_TRANSACTIONS=0']
+defines = ['BACNET_CONFIG_H']
 
 if GetDepend(['PKG_BACNET_MSTP']):
     src += src_mstp

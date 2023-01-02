@@ -137,3 +137,13 @@ void bacnet_task(void)
         npdu_handler(&src, &PDUBuffer[0], pdu_len);
     }
 }
+
+void debug_printf(const char *format, ...)
+{
+    // char buf[1024];
+    // va_list ap;
+    // va_start(ap, format);
+    // vsnprintf(buf, sizeof(buf), format, ap);
+    // va_end(ap);
+    // rt_kprintf("%s", buf);
+}

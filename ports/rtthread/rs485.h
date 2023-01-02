@@ -39,6 +39,7 @@
 #include <stdint.h>
 #include "bacnet/bacnet_stack_exports.h"
 #include "bacnet/datalink/mstp.h"
+#include "hardware.h"
 
 #ifdef __cplusplus
 extern "C" {

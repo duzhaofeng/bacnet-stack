@@ -70,7 +70,7 @@
 #endif
 
 #if defined(PRINT_ENABLED_RECEIVE)
-#define printf_receive debug_printf
+#define printf_receive(...) dbg_raw(__VA_ARGS__)
 #else
 static inline void printf_receive(const char *format, ...)
 {
@@ -79,7 +79,7 @@ static inline void printf_receive(const char *format, ...)
 #endif
 
 #if defined(PRINT_ENABLED_RECEIVE_DATA)
-#define printf_receive_data debug_printf
+#define printf_receive_data(...) dbg_raw(__VA_ARGS__)
 #else
 static inline void printf_receive_data(const char *format, ...)
 {
@@ -88,7 +88,7 @@ static inline void printf_receive_data(const char *format, ...)
 #endif
 
 #if defined(PRINT_ENABLED_RECEIVE_ERRORS)
-#define printf_receive_error debug_printf
+#define printf_receive_error(...) dbg_raw(__VA_ARGS__)
 #else
 static inline void printf_receive_error(const char *format, ...)
 {
@@ -97,7 +97,7 @@ static inline void printf_receive_error(const char *format, ...)
 #endif
 
 #if defined(PRINT_ENABLED_MASTER)
-#define printf_master debug_printf
+#define printf_master(...) dbg_raw(__VA_ARGS__)
 #else
 static inline void printf_master(const char *format, ...)
 {

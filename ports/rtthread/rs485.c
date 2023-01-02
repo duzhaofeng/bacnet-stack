@@ -7,9 +7,6 @@
 #include <string.h>
 
 #include "rtdevice.h"
-#define DBG_SECTION_NAME               "bacnet"
-#define DBG_LEVEL                      DBG_INFO
-#include <rtdbg.h>
 
 /* Local includes */
 #include "bacnet/datalink/mstp.h"
