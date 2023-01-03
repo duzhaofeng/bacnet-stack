@@ -111,7 +111,10 @@ void RS485_Send_Frame(
     uint8_t *buffer, /* frame to send (up to 501 bytes of data) */
     uint16_t nbytes)
 { /* number of bytes of data (up to 501) */
+    rt_thread_mdelay(Tturnaround * 1000 / RS485_Get_Baud_Rate());
+    serial->ops->control(serial, RT_DEVICE_CTRL_CLR_INT, (void *)RT_DEVICE_FLAG_INT_RX);
     serial->parent.write(&(serial->parent), 0, buffer, nbytes);
+    serial->ops->control(serial, RT_DEVICE_CTRL_SET_INT, (void *)RT_DEVICE_FLAG_INT_RX);
     /* per MSTP spec, sort of */
     if (mstp_port) {
         mstp_port->SilenceTimerReset((void *)mstp_port);

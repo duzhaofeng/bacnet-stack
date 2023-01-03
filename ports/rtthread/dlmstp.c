@@ -40,7 +40,6 @@
 #include "bacnet/basic/sys/ringbuf.h"
 #include "bacnet/basic/sys/debug.h"
 /* OS Specific include */
-// #include "bacport.h"
 
 /** @file rtthread/dlmstp.c  Provides rtthread-specific DataLink functions for MS/TP.
  */
@@ -673,7 +672,7 @@ bool dlmstp_init(char *ifname)
     LOG_I("MS/TP Max_Master: %02X", MSTP_Port.Nmax_master);
     LOG_I("MS/TP Max_Info_Frames: %u", MSTP_Port.Nmax_info_frames);
     run_thread = true;
-    rv = rt_thread_init(&hThread, "bacnet_mstp", dlmstp_master_fsm_task, RT_NULL, hThread_stack, sizeof(hThread_stack), 9, 10);
+    rv = rt_thread_init(&hThread, "bacnet_mstp", dlmstp_master_fsm_task, RT_NULL, hThread_stack, sizeof(hThread_stack), 11, 10);
     if (rv != RT_EOK) {
         LOG_E("Failed to start Master Node FSM task");
         return false;

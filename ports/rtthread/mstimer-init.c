@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <limits.h>
-#include "bacport.h"
+#include <sys/time.h>
 #include "bacnet/basic/sys/mstimer.h"
 
 /* start time for the clock */
