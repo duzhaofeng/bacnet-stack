@@ -88,7 +88,7 @@ static struct my_object_functions {
    properties that are writable or that may change.
    The properties that are constant can be hard coded
    into the read-property encoding. */
-static uint32_t Object_Instance_Number = 103;
+extern uint32_t Object_Instance_Number;
 static BACNET_DEVICE_STATUS System_Status = STATUS_OPERATIONAL;
 static BACNET_CHARACTER_STRING My_Object_Name;
 static uint32_t Database_Revision;
@@ -110,7 +110,7 @@ static const int Device_Properties_Required[] = { PROP_OBJECT_IDENTIFIER,
 static const int Device_Properties_Optional[] = { PROP_DESCRIPTION,
     PROP_LOCATION, PROP_MAX_MASTER, PROP_MAX_INFO_FRAMES, -1 };
 
-static const int Device_Properties_Proprietary[] = { 9600, -1 };
+static const int Device_Properties_Proprietary[] = { 9600, 9601, -1 };
 
 static struct my_object_functions *Device_Objects_Find_Functions(
     BACNET_OBJECT_TYPE Object_Type)
@@ -438,10 +438,9 @@ bool Device_Set_Object_Instance_Number(uint32_t object_id)
     bool status = true; /* return value */
 
     if (object_id <= BACNET_MAX_INSTANCE) {
-        Object_Instance_Number = object_id;
+        status = save_config(SETTING_BN_OBJECT, object_id);
     } else
         status = false;
-
     return status;
 }
 
@@ -656,7 +655,7 @@ int Device_Read_Property_Local(BACNET_READ_PROPERTY_DATA *rpdata)
                 encode_application_character_string(&apdu[0], &char_string);
             break;
         case PROP_APPLICATION_SOFTWARE_VERSION:
-            characterstring_init_ansi(&char_string, "1.0");
+            characterstring_init_ansi(&char_string, "1.2");
             apdu_len =
                 encode_application_character_string(&apdu[0], &char_string);
             break;
@@ -772,6 +771,9 @@ int Device_Read_Property_Local(BACNET_READ_PROPERTY_DATA *rpdata)
             break;
         case 9600:
             apdu_len = encode_application_unsigned(&apdu[0], RS485_Get_Baud_Rate());
+            break;
+        case 9601:
+            apdu_len = encode_application_unsigned(&apdu[0], dlmstp_mac_address());
             break;
         default:
             rpdata->error_class = ERROR_CLASS_PROPERTY;
@@ -899,6 +901,19 @@ bool Device_Write_Property_Local(BACNET_WRITE_PROPERTY_DATA *wp_data)
             if (value.tag == BACNET_APPLICATION_TAG_UNSIGNED_INT) {
                 if ((value.type.Unsigned_Int <= 115200) &&
                     (RS485_Set_Baud_Rate(value.type.Unsigned_Int))) {
+                    status = true;
+                } else {
+                    wp_data->error_class = ERROR_CLASS_PROPERTY;
+                    wp_data->error_code = ERROR_CODE_VALUE_OUT_OF_RANGE;
+                }
+            } else {
+                wp_data->error_class = ERROR_CLASS_PROPERTY;
+                wp_data->error_code = ERROR_CODE_INVALID_DATA_TYPE;
+            }
+            break;
+        case 9601:
+            if (value.tag == BACNET_APPLICATION_TAG_UNSIGNED_INT) {
+                if (save_config(SETTING_BN_ADDRESS, value.type.Unsigned_Int)) {
                     status = true;
                 } else {
                     wp_data->error_class = ERROR_CLASS_PROPERTY;

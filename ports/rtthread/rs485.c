@@ -20,7 +20,7 @@
 /* modbus slave serial device */
 static rt_serial_t *serial = NULL;
 
-static unsigned int RS485_Baud = 19200;
+extern unsigned int RS485_Baud;
 
 static char *RS485_Port_Name = "uart1";
 
@@ -90,13 +90,14 @@ bool RS485_Set_Baud_Rate(uint32_t baud)
         case 57600:
         case 76800:
         case 115200:
-            RS485_Baud = baud;
             break;
         default:
             valid = false;
             break;
     }
-
+    if (valid) {
+        return save_config(SETTING_BN_BAUDRATE, baud);
+    }
     return valid;
 }
 
