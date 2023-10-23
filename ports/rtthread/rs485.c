@@ -114,8 +114,14 @@ void RS485_Send_Frame(
 { /* number of bytes of data (up to 501) */
     rt_thread_mdelay(Tturnaround * 1000 / RS485_Get_Baud_Rate());
     serial->ops->control(serial, RT_DEVICE_CTRL_CLR_INT, (void *)RT_DEVICE_FLAG_INT_RX);
+#if defined(RT_MODBUS_SLAVE_USE_CONTROL_PIN)
+    rt_pin_write(MODBUS_SLAVE_RT_CONTROL_PIN_INDEX, PIN_HIGH);
+#endif
     serial->parent.write(&(serial->parent), 0, buffer, nbytes);
     serial->ops->control(serial, RT_DEVICE_CTRL_SET_INT, (void *)RT_DEVICE_FLAG_INT_RX);
+#if defined(RT_MODBUS_SLAVE_USE_CONTROL_PIN)
+    rt_pin_write(MODBUS_SLAVE_RT_CONTROL_PIN_INDEX, PIN_LOW);
+#endif
     /* per MSTP spec, sort of */
     if (mstp_port) {
         mstp_port->SilenceTimerReset((void *)mstp_port);
@@ -171,6 +177,9 @@ void RS485_Initialize(void)
     /* open serial device */
     if (!rt_device_open(&serial->parent, RT_DEVICE_OFLAG_RDWR | RT_DEVICE_FLAG_INT_RX)) {
         rt_device_set_rx_indicate(&serial->parent, serial_rx_ind);
+#if defined(RT_MODBUS_SLAVE_USE_CONTROL_PIN)
+        rt_pin_mode(MODBUS_SLAVE_RT_CONTROL_PIN_INDEX, PIN_MODE_OUTPUT);
+#endif
     } else {
         LOG_E("RS485: Can not open %s", RS485_Port_Name);
         return;
