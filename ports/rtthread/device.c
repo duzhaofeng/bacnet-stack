@@ -70,12 +70,10 @@ static struct my_object_functions {
         Binary_Input_Index_To_Instance, Binary_Input_Valid_Instance,
         Binary_Input_Object_Name, Binary_Input_Read_Property, NULL,
         Binary_Input_Property_Lists },
-#if (HAVE_BINARY_OUTPUTS)
     { OBJECT_BINARY_OUTPUT, Binary_Output_Init, Binary_Output_Count,
         Binary_Output_Index_To_Instance, Binary_Output_Valid_Instance,
         Binary_Output_Object_Name, Binary_Output_Read_Property,
         Binary_Output_Write_Property, Binary_Output_Property_Lists },
-#endif
 #if (BACNET_PROTOCOL_REVISION >= 17)
     { OBJECT_NETWORK_PORT, Network_Port_Init, Network_Port_Count,
         Network_Port_Index_To_Instance, Network_Port_Valid_Instance,

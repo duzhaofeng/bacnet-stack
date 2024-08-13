@@ -41,6 +41,8 @@
 #error Please define MAX_BINARY_OUTPUTS
 #endif
 
+unsigned int Binary_Output_Num = 0;
+
 /* When all the priorities are level null, the present value returns */
 /* the Relinquish Default value */
 #define RELINQUISH_DEFAULT BINARY_INACTIVE
@@ -79,7 +81,7 @@ void Binary_Output_Property_Lists(
 /* we simply have 0-n object instances. */
 bool Binary_Output_Valid_Instance(uint32_t object_instance)
 {
-    if (object_instance < MAX_BINARY_OUTPUTS)
+    if (object_instance < Binary_Output_Num)
         return true;
 
     return false;
@@ -88,7 +90,7 @@ bool Binary_Output_Valid_Instance(uint32_t object_instance)
 /* we simply have 0-n object instances. */
 unsigned Binary_Output_Count(void)
 {
-    return MAX_BINARY_OUTPUTS;
+    return Binary_Output_Num;
 }
 
 /* we simply have 0-n object instances. */
@@ -100,9 +102,9 @@ uint32_t Binary_Output_Index_To_Instance(unsigned index)
 /* we simply have 0-n object instances.  */
 unsigned Binary_Output_Instance_To_Index(uint32_t object_instance)
 {
-    unsigned index = MAX_BINARY_OUTPUTS;
+    unsigned index = Binary_Output_Num;
 
-    if (object_instance < MAX_BINARY_OUTPUTS)
+    if (object_instance < Binary_Output_Num)
         index = object_instance;
 
     return index;
@@ -114,7 +116,7 @@ static BACNET_BINARY_PV Present_Value(unsigned int index)
     BACNET_BINARY_PV current_value = RELINQUISH_DEFAULT;
     unsigned i = 0;
 
-    if (index < MAX_BINARY_OUTPUTS) {
+    if (index < Binary_Output_Num) {
         for (i = 0; i < BACNET_MAX_PRIORITY; i++) {
             current_value = (BACNET_BINARY_PV)Binary_Output_Level[index][i];
             if (current_value != BINARY_NULL) {
@@ -125,6 +127,25 @@ static BACNET_BINARY_PV Present_Value(unsigned int index)
     }
 
     return value;
+}
+
+static Update_DO(void)
+{
+    uint16_t _do = 0;
+    BACNET_BINARY_PV value = RELINQUISH_DEFAULT;
+    unsigned int index, i;
+    for (index = 0; index < Binary_Output_Num; index++) {
+        for (i = 0; i < BACNET_MAX_PRIORITY; i++) {
+            value = (BACNET_BINARY_PV)Binary_Output_Level[index][i];
+            if (value != BINARY_NULL) {
+                break;
+            }
+        }
+        value = (value == BINARY_ACTIVE) ? BINARY_ACTIVE : BINARY_INACTIVE;
+        value = (Polarity[index] == POLARITY_NORMAL) ? value : (value ^ 1);
+        _do |= (value << index);
+    }
+    write_do(_do);
 }
 
 BACNET_BINARY_PV Binary_Output_Present_Value(uint32_t object_instance)
@@ -141,10 +162,11 @@ bool Binary_Output_Present_Value_Set(
 { /* 0..15 */
     bool status = false;
 
-    if (instance < MAX_BINARY_OUTPUTS) {
+    if (instance < Binary_Output_Num) {
         if (priority < BACNET_MAX_PRIORITY) {
             Binary_Output_Level[instance][priority] = (uint8_t)binary_value;
             status = true;
+            Update_DO();
         }
     }
 
@@ -155,10 +177,11 @@ bool Binary_Output_Polarity_Set(uint32_t instance, BACNET_POLARITY polarity)
 {
     bool status = false;
 
-    if (instance < MAX_BINARY_OUTPUTS) {
+    if (instance < Binary_Output_Num) {
         if (polarity < MAX_POLARITY) {
             Polarity[instance] = polarity;
             status = true;
+            Update_DO();
         }
     }
 
@@ -169,7 +192,7 @@ BACNET_POLARITY Binary_Output_Polarity(uint32_t instance)
 {
     BACNET_POLARITY polarity = POLARITY_NORMAL;
 
-    if (instance < MAX_BINARY_OUTPUTS) {
+    if (instance < Binary_Output_Num) {
         polarity = (BACNET_POLARITY)Polarity[instance];
     }
 
@@ -178,7 +201,7 @@ BACNET_POLARITY Binary_Output_Polarity(uint32_t instance)
 
 void Binary_Output_Out_Of_Service_Set(uint32_t instance, bool flag)
 {
-    if (instance < MAX_BINARY_OUTPUTS) {
+    if (instance < Binary_Output_Num) {
         Out_Of_Service[instance] = flag;
     }
 }
@@ -187,7 +210,7 @@ bool Binary_Output_Out_Of_Service(uint32_t instance)
 {
     bool flag = false;
 
-    if (instance < MAX_BINARY_OUTPUTS) {
+    if (instance < Binary_Output_Num) {
         flag = Out_Of_Service[instance];
     }
 
@@ -201,7 +224,7 @@ bool Binary_Output_Object_Name(
     static char text_string[16] = "BO-"; /* okay for single thread */
     bool status = false;
 
-    if (object_instance < MAX_BINARY_OUTPUTS) {
+    if (object_instance < Binary_Output_Num) {
         sprintf(text_string + 3, "%d", object_instance);
         status = characterstring_init_ansi(object_name, text_string);
     }
@@ -470,6 +493,10 @@ bool Binary_Output_Write_Property(BACNET_WRITE_PROPERTY_DATA *wp_data)
 void Binary_Output_Init(void)
 {
     unsigned i, j;
+
+    if (do_mode == 1) {
+        Binary_Output_Num = 8;
+    }
 
     /* initialize all the analog output priority arrays to NULL */
     for (i = 0; i < MAX_BINARY_OUTPUTS; i++) {

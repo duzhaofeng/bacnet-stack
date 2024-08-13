@@ -36,6 +36,7 @@
 #include "bacnet/basic/services.h"
 #include "hardware.h"
 
+unsigned int Binary_Input_Num = MAX_BINARY_INPUTS;
 static BACNET_BINARY_PV Present_Value[MAX_BINARY_INPUTS];
 
 /* These three arrays are used by the ReadPropertyMultiple handler */
@@ -67,6 +68,10 @@ void Binary_Input_Init(void)
 {
     unsigned i;
 
+    if (do_mode == 1) {
+        Binary_Input_Num = 8;
+    }
+
     for (i = 0; i < MAX_BINARY_INPUTS; i++) {
         Present_Value[i] = BINARY_INACTIVE;
     }
@@ -75,7 +80,7 @@ void Binary_Input_Init(void)
 /* we simply have 0-n object instances. */
 bool Binary_Input_Valid_Instance(uint32_t object_instance)
 {
-    if (object_instance < MAX_BINARY_INPUTS)
+    if (object_instance < Binary_Input_Num)
         return true;
 
     return false;
@@ -84,7 +89,7 @@ bool Binary_Input_Valid_Instance(uint32_t object_instance)
 /* we simply have 0-n object instances. */
 unsigned Binary_Input_Count(void)
 {
-    return MAX_BINARY_INPUTS;
+    return Binary_Input_Num;
 }
 
 /* we simply have 0-n object instances.*/
@@ -98,9 +103,9 @@ uint32_t Binary_Input_Index_To_Instance(unsigned index)
 /* that correlates to the correct instance number */
 unsigned Binary_Input_Instance_To_Index(uint32_t object_instance)
 {
-    unsigned index = MAX_BINARY_INPUTS;
+    unsigned index = Binary_Input_Num;
 
-    if (object_instance < MAX_BINARY_INPUTS)
+    if (object_instance < Binary_Input_Num)
         index = object_instance;
 
     return index;
@@ -112,13 +117,13 @@ BACNET_BINARY_PV Binary_Input_Present_Value(uint32_t object_instance)
     unsigned index = 0;
 
     rt_uint16_t bi = read_di();
-    while (index < MAX_BINARY_INPUTS) {
+    while (index < Binary_Input_Num) {
         Present_Value[index] = (bi & (1 << index)) ? BINARY_ACTIVE : BINARY_INACTIVE;
         index++;
     }
 
     index = Binary_Input_Instance_To_Index(object_instance);
-    if (index < MAX_BINARY_INPUTS) {
+    if (index < Binary_Input_Num) {
         value = Present_Value[index];
     }
 
@@ -131,7 +136,7 @@ bool Binary_Input_Object_Name(
     static char text_string[16] = "BI-"; /* okay for single thread */
     bool status = false;
 
-    if (object_instance < MAX_BINARY_INPUTS) {
+    if (object_instance < Binary_Input_Num) {
         sprintf(text_string + 3, "%d", object_instance);
         status = characterstring_init_ansi(object_name, text_string);
     }
