@@ -129,7 +129,7 @@ static BACNET_BINARY_PV Present_Value(unsigned int index)
     return value;
 }
 
-static Update_DO(void)
+static void Update_DO(void)
 {
     uint16_t _do = 0;
     BACNET_BINARY_PV value = RELINQUISH_DEFAULT;
