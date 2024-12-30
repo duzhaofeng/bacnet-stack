@@ -186,8 +186,7 @@ static int bip_decode_bip_address(BACNET_IP_ADDRESS *baddr,
     int len = 0;
 
     if (baddr && address && port) {
-        address->type = IPADDR_TYPE_V4;
-        bip_mac_to_addr(&address->u_addr.ip4, &baddr->address[0]);
+        bip_mac_to_addr(address, &baddr->address[0]);
         *port = baddr->port;
         len = 6;
     }
@@ -223,11 +222,9 @@ static int bip_encode_bip_address(BACNET_IP_ADDRESS *baddr,
     int len = 0;
 
     if (baddr && address) {
-        if (address->type == IPADDR_TYPE_V4) {
-            bip_addr_to_mac(&baddr->address[0], &address->u_addr.ip4);
-            baddr->port = port;
-            len = 6;
-        }
+        bip_addr_to_mac(&baddr->address[0], address);
+        baddr->port = port;
+        len = 6;
     }
 
     return len;
@@ -298,7 +295,6 @@ void bip_server_callback(void *arg,
     const ip_addr_t *addr,
     u16_t port)
 {
-    uint8_t function = 0;
     uint16_t npdu_offset = 0;
     BACNET_ADDRESS src = { 0 }; /* address where message came from */
     BACNET_IP_ADDRESS saddr;
