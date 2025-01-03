@@ -33,6 +33,8 @@
 #include "bacnet/bacenum.h"
 #include "bacnet/apdu.h"
 #include "bacnet/dcc.h"
+#include "bacnet/datalink/mstp.h"
+#include "bacnet/datalink/dlmstp.h"
 #include "bacnet/datalink/datalink.h"
 #include "rs485.h"
 #include "bacnet/version.h"

@@ -27,7 +27,7 @@ static char *RS485_Port_Name = "uart1";
 /* Ring buffer for incoming bytes, in order to speed up the receiving. */
 static FIFO_BUFFER Rx_FIFO;
 /* buffer size needs to be a power of 2 */
-static uint8_t Rx_Buffer[4096];
+static uint8_t Rx_Buffer[2048];
 
 static rt_err_t serial_rx_ind(rt_device_t dev, rt_size_t size)
 {
