@@ -29,6 +29,8 @@
 #include "bacnet/basic/sys/mstimer.h"
 /* BACnet Stack includes */
 #include "bacnet/datalink/datalink.h"
+#include "bacnet/datalink/dlmstp.h"
+#include "bacnet/datalink/bip.h"
 #include "bacnet/npdu.h"
 #include "bacnet/basic/services.h"
 #include "bacnet/basic/services.h"
@@ -45,12 +47,33 @@
 static struct mstimer DCC_Timer;
 #define DCC_CYCLE_SECONDS 1
 
-void bacnet_init(void)
+void bacnet_init(int is_mstp)
 {
-    dlmstp_set_mac_address(bn_address);
-    dlmstp_set_max_master(127);
     /* initialize datalink layer */
-    dlmstp_init(NULL);
+    if (is_mstp) {
+        datalink_set("mstp");
+        dlmstp_set_mac_address(bn_address);
+        dlmstp_set_max_master(127);
+        dlmstp_init(NULL);
+    } else {
+        uint32_t broadcast_addr;
+        BACNET_IP_ADDRESS addr;
+        datalink_set("bip");
+        addr.address[0] = (ip_address >> 24) & 0xFF;
+        addr.address[1] = (ip_address >> 16) & 0xFF;
+        addr.address[2] = (ip_address >> 8) & 0xFF;
+        addr.address[3] = ip_address & 0xFF;
+        addr.port = bn_port;
+        bip_set_addr(&addr);
+        broadcast_addr = (uint32_t)~((1 << (32 - ip_mask)) - 1);
+        broadcast_addr = (ip_address & broadcast_addr) | (~broadcast_addr);
+        addr.address[0] = (broadcast_addr >> 24) & 0xFF;
+        addr.address[1] = (broadcast_addr >> 16) & 0xFF;
+        addr.address[2] = (broadcast_addr >> 8) & 0xFF;
+        addr.address[3] = broadcast_addr & 0xFF;
+        bip_set_broadcast_addr(&addr);
+        bip_init(NULL);
+    }
     /* initialize objects */
     Device_Init(NULL);
 
@@ -93,39 +116,7 @@ void bacnet_task(void)
 {
     uint16_t pdu_len;
     BACNET_ADDRESS src; /* source address */
-    uint8_t i;
-    BACNET_BINARY_PV binary_value = BINARY_INACTIVE;
-    BACNET_POLARITY polarity;
-    bool out_of_service;
 
-    /* Binary Output */
-    for (i = 0; i < MAX_BINARY_OUTPUTS; i++) {
-        out_of_service = Binary_Output_Out_Of_Service(i);
-        if (!out_of_service) {
-            binary_value = Binary_Output_Present_Value(i);
-            polarity = Binary_Output_Polarity(i);
-            if (polarity != POLARITY_NORMAL) {
-                if (binary_value == BINARY_ACTIVE) {
-                    binary_value = BINARY_INACTIVE;
-                } else {
-                    binary_value = BINARY_ACTIVE;
-                }
-            }
-            if (binary_value == BINARY_ACTIVE) {
-                if (i == 0) {
-                    /* led_on(LED_2); */
-                } else {
-                    /* led_on(LED_3); */
-                }
-            } else {
-                if (i == 0) {
-                    /* led_off(LED_2); */
-                } else {
-                    /* led_off(LED_3); */
-                }
-            }
-        }
-    }
     /* handle the communication timer */
     if (mstimer_expired(&DCC_Timer)) {
         mstimer_reset(&DCC_Timer);

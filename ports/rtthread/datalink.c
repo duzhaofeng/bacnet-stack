@@ -40,6 +40,7 @@
 #include "bacnet/basic/bbmd/h_bbmd.h"
 #include "bacnet/datalink/dlmstp.h"
 #include <strings.h> /* for strcasecmp() */
+#include <rtthread.h>
 
 static enum {
     DATALINK_NONE = 0,
@@ -112,6 +113,7 @@ uint16_t datalink_receive(
         case DATALINK_NONE:
             break;
         case DATALINK_BIP:
+            rt_thread_mdelay(100);
             bytes = 0;
             break;
         case DATALINK_MSTP:

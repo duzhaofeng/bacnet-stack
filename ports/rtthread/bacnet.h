@@ -31,7 +31,7 @@ extern "C" {
 #endif /* __cplusplus */
 
     void bacnet_init(
-        void);
+        int is_mstp);
     void bacnet_task(
         void);
 

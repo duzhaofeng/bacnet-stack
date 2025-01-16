@@ -16,8 +16,11 @@
 #define SETTING_BN_BAUDRATE 4
 #define SETTING_BN_OBJECT   5
 
+extern uint16_t bn_port;
 extern uint8_t bn_address;
 extern uint8_t do_mode;
+extern uint32_t ip_address;
+extern uint8_t ip_mask;
 extern rt_uint16_t read_di(void);
 extern void write_do(rt_uint16_t value);
 extern rt_bool_t save_config(rt_uint8_t type, rt_uint32_t value);
