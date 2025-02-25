@@ -166,10 +166,8 @@ uint16_t bip_get_port(void)
 static void bip_mac_to_addr(ip4_addr_t *address, uint8_t *mac)
 {
     if (mac && address) {
-        address->addr = ((u32_t)((((uint32_t)mac[0]) << 24) & 0xff000000));
-        address->addr |= ((u32_t)((((uint32_t)mac[1]) << 16) & 0x00ff0000));
-        address->addr |= ((u32_t)((((uint32_t)mac[2]) << 8) & 0x0000ff00));
-        address->addr |= ((u32_t)(((uint32_t)mac[3]) & 0x000000ff));
+        uint32_t addr = (((uint32_t)mac[0]) << 24) | (((uint32_t)mac[1]) << 16) | (((uint32_t)mac[2]) << 8) | (uint32_t)mac[3];
+        address->addr = lwip_htonl(addr);
     }
 }
 
@@ -202,10 +200,11 @@ static int bip_decode_bip_address(BACNET_IP_ADDRESS *baddr,
 static void bip_addr_to_mac(uint8_t *mac, const ip4_addr_t *address)
 {
     if (mac && address) {
-        mac[0] = (uint8_t)(address->addr >> 24);
-        mac[1] = (uint8_t)(address->addr >> 16);
-        mac[2] = (uint8_t)(address->addr >> 8);
-        mac[3] = (uint8_t)(address->addr);
+        uint32_t addr = lwip_ntohl(address->addr);
+        mac[0] = (uint8_t)(addr >> 24);
+        mac[1] = (uint8_t)(addr >> 16);
+        mac[2] = (uint8_t)(addr >> 8);
+        mac[3] = (uint8_t)(addr);
     }
 }
 
