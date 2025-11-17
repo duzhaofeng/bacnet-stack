@@ -68,9 +68,7 @@ void Binary_Input_Init(void)
 {
     unsigned i;
 
-    if (do_mode == 1) {
-        Binary_Input_Num = 8;
-    }
+    Binary_Input_Num = di_num;
 
     for (i = 0; i < MAX_BINARY_INPUTS; i++) {
         Present_Value[i] = BINARY_INACTIVE;
@@ -116,7 +114,7 @@ BACNET_BINARY_PV Binary_Input_Present_Value(uint32_t object_instance)
     BACNET_BINARY_PV value = BINARY_INACTIVE;
     unsigned index = 0;
 
-    rt_uint16_t bi = read_di();
+    uint16_t bi = read_di();
     while (index < Binary_Input_Num) {
         Present_Value[index] = (bi & (1 << index)) ? BINARY_ACTIVE : BINARY_INACTIVE;
         index++;

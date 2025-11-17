@@ -494,9 +494,7 @@ void Binary_Output_Init(void)
 {
     unsigned i, j;
 
-    if (do_mode == 1) {
-        Binary_Output_Num = 8;
-    }
+    Binary_Output_Num = do_num;
 
     /* initialize all the analog output priority arrays to NULL */
     for (i = 0; i < MAX_BINARY_OUTPUTS; i++) {

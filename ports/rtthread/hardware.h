@@ -18,11 +18,14 @@
 
 extern uint16_t bn_port;
 extern uint8_t bn_address;
-extern uint8_t do_mode;
+extern uint8_t di_num;
+extern uint8_t do_num;
+extern uint8_t ai_num;
+extern uint8_t ao_num;
 extern uint32_t ip_address;
 extern uint8_t ip_mask;
-extern rt_uint16_t read_di(void);
-extern void write_do(rt_uint16_t value);
-extern rt_bool_t save_config(rt_uint8_t type, rt_uint32_t value);
+extern uint16_t read_di(void);
+extern void write_do(uint16_t value);
+extern rt_bool_t save_config(uint8_t type, uint32_t value);
 
 #endif
