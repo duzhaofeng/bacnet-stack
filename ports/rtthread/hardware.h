@@ -26,6 +26,8 @@ extern uint32_t ip_address;
 extern uint8_t ip_mask;
 extern uint16_t read_di(void);
 extern void write_do(uint16_t value);
+extern void read_ai(uint16_t *buf, uint32_t idx, uint32_t num);
+extern void write_ao(uint16_t *buf, uint32_t idx, uint32_t num);
 extern rt_bool_t save_config(uint8_t type, uint32_t value);
 
 #endif

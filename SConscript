@@ -17,6 +17,8 @@ src = Glob('src/bacnet/*.c') + \
       Glob(path_port + 'device.c') + \
       Glob(path_port + 'mstimer-init.c') + \
       Glob(path_port + 'netport.c') + \
+      Glob(path_port + 'ai.c') + \
+      Glob(path_port + 'ao.c') + \
       Glob(path_port + 'bi.c') + \
       Glob(path_port + 'bo.c')
 
