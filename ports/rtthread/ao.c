@@ -118,9 +118,8 @@ bool Analog_Output_Present_Value_Set(uint32_t instance, float value, unsigned pr
 
     index = Analog_Output_Instance_To_Index(instance);
     if (index < Analog_Output_Num) {
-        uint16_t uval = (uint16_t)(value * 1000);
         Present_Value[index] = value;
-        write_ao(&uval, index, 1);
+        write_ao_float(Present_Value, index, 1);
     }
 
     return status;

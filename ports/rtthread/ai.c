@@ -116,13 +116,8 @@ float Analog_Input_Present_Value(uint32_t object_instance)
 {
     float value = 0.0;
     unsigned index = 0;
-    uint16_t buf[MAX_ANALOG_INPUTS] = {0};
 
-    read_ai(buf, 0, Analog_Input_Num);
-    while (index < Analog_Input_Num) {
-        Present_Value[index] = buf[index] / 1000.0f;
-        index++;
-    }
+    read_ai_float(Present_Value, 0, Analog_Input_Num);
 
     index = Analog_Input_Instance_To_Index(object_instance);
     if (index < Analog_Input_Num) {
