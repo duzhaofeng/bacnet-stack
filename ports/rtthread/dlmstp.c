@@ -631,8 +631,8 @@ bool dlmstp_init(char *ifname)
 {
     rt_err_t rv = 0;
 
-    rt_mutex_init(&Ring_Buffer_Mutex, "Ring_Buffer_Mutex", RT_IPC_FLAG_PRIO);
-    rt_mutex_init(&Thread_Mutex, "Thread_Mutex", RT_IPC_FLAG_PRIO);
+    rt_mutex_init(&Ring_Buffer_Mutex, "mstp_rb_lk", RT_IPC_FLAG_PRIO);
+    rt_mutex_init(&Thread_Mutex, "mstp_th_lk", RT_IPC_FLAG_PRIO);
 
     /* initialize PDU queue */
     Ringbuf_Init(&PDU_Queue, (uint8_t *)&PDU_Buffer,
@@ -640,14 +640,14 @@ bool dlmstp_init(char *ifname)
     /* initialize packet queue */
     Receive_Packet.ready = false;
     Receive_Packet.pdu_len = 0;
-    rv = rt_sem_init(&Receive_Packet_Flag, "Receive_Packet_Flag", 0, RT_IPC_FLAG_PRIO);
+    rv = rt_sem_init(&Receive_Packet_Flag, "mstp_rx_sem", 0, RT_IPC_FLAG_PRIO);
     if (rv != RT_EOK) {
         LOG_E(
             "MS/TP Interface: %s, cannot allocate PThread Condition",
             ifname);
         return false;
     }
-    rv = rt_mutex_init(&Receive_Packet_Mutex, "Receive_Packet_Mutex", RT_IPC_FLAG_PRIO);
+    rv = rt_mutex_init(&Receive_Packet_Mutex, "mstp_rx_lk", RT_IPC_FLAG_PRIO);
     if (rv != RT_EOK) {
         LOG_E(
             "MS/TP Interface: %s, cannot allocate Mutex", ifname);
